@@ -1,52 +1,98 @@
 import api from '@/lib/api'
-import { MedicalRecord, VitalSigns, ApiResponse, PaginatedResponse } from '@/types'
+import { MedicalRecord, VitalSigns, ApiResponse } from '@/types'
 
 export const medicalRecordAPI = {
-  // Get medical records for a patient
-  getPatientRecords: async (patientId: string, page = 1, limit = 10): Promise<PaginatedResponse<MedicalRecord>> => {
-    const response = await api.get(`/medical-records/patient/${patientId}?page=${page}&limit=${limit}`)
-    return response.data
+  // Get or create medical record for current user
+  getMedicalRecord: async (): Promise<ApiResponse<MedicalRecord>> => {
+    const response = await api.get('/medical-records')
+    return {
+      success: true,
+      data: response.data.medicalRecord,
+      message: 'Medical record retrieved successfully'
+    }
   },
 
-  // Get medical record by ID
-  getRecordById: async (id: string): Promise<ApiResponse<MedicalRecord>> => {
-    const response = await api.get(`/medical-records/${id}`)
-    return response.data
-  },
-
-  // Create new medical record
-  createRecord: async (recordData: any): Promise<ApiResponse<MedicalRecord>> => {
-    const response = await api.post('/medical-records', recordData)
-    return response.data
+  // Get patient medical record (for doctors)
+  getPatientMedicalRecord: async (patientId: string): Promise<ApiResponse<MedicalRecord>> => {
+    const response = await api.get(`/medical-records/patient/${patientId}`)
+    return {
+      success: true,
+      data: response.data.medicalRecord,
+      message: 'Patient medical record retrieved successfully'
+    }
   },
 
   // Update medical record
-  updateRecord: async (id: string, recordData: any): Promise<ApiResponse<MedicalRecord>> => {
-    const response = await api.put(`/medical-records/${id}`, recordData)
-    return response.data
+  updateMedicalRecord: async (recordData: {
+    allergies?: string[]
+    medicalConditions?: string[]
+    currentMedications?: string[]
+    pastSurgeries?: string[]
+    immunizations?: string[]
+    familyHistory?: string[]
+  }): Promise<ApiResponse<MedicalRecord>> => {
+    const response = await api.put('/medical-records', recordData)
+    return {
+      success: true,
+      data: response.data.medicalRecord,
+      message: response.data.message || 'Medical record updated successfully'
+    }
   },
 
-  // Delete medical record
-  deleteRecord: async (id: string): Promise<ApiResponse<any>> => {
-    const response = await api.delete(`/medical-records/${id}`)
-    return response.data
-  },
-
-  // Add vital signs to a record
-  addVitalSigns: async (recordId: string, vitalSigns: Omit<VitalSigns, '_id'>): Promise<ApiResponse<MedicalRecord>> => {
-    const response = await api.post(`/medical-records/${recordId}/vital-signs`, vitalSigns)
-    return response.data
+  // Add vital signs
+  addVitalSigns: async (vitalSigns: {
+    bloodPressure: string
+    heartRate: number
+    temperature: number
+    weight: number
+    height: number
+    respiratoryRate?: number
+    oxygenSaturation?: number
+  }, patientId?: string): Promise<ApiResponse<VitalSigns>> => {
+    const headers: any = {}
+    if (patientId) {
+      headers['x-patient-id'] = patientId
+    }
+    
+    const response = await api.post('/medical-records/vital-signs', vitalSigns, { headers })
+    return {
+      success: true,
+      data: response.data.vitalSigns,
+      message: response.data.message || 'Vital signs added successfully'
+    }
   },
 
   // Update vital signs
-  updateVitalSigns: async (recordId: string, vitalSignsId: string, vitalSigns: Partial<VitalSigns>): Promise<ApiResponse<MedicalRecord>> => {
-    const response = await api.put(`/medical-records/${recordId}/vital-signs/${vitalSignsId}`, vitalSigns)
-    return response.data
+  updateVitalSigns: async (vitalSignsId: string, vitalSigns: Partial<VitalSigns>, patientId?: string): Promise<ApiResponse<VitalSigns>> => {
+    const headers: any = {}
+    if (patientId) {
+      headers['x-patient-id'] = patientId
+    }
+    
+    const response = await api.put('/medical-records/vital-signs', { 
+      vitalSignsId, 
+      updatedVitalSigns: vitalSigns 
+    }, { headers })
+    return {
+      success: true,
+      data: response.data.vitalSigns,
+      message: response.data.message || 'Vital signs updated successfully'
+    }
   },
 
   // Delete vital signs
-  deleteVitalSigns: async (recordId: string, vitalSignsId: string): Promise<ApiResponse<MedicalRecord>> => {
-    const response = await api.delete(`/medical-records/${recordId}/vital-signs/${vitalSignsId}`)
-    return response.data
-  },
+  deleteVitalSigns: async (vitalSignsId: string, patientId?: string): Promise<ApiResponse<any>> => {
+    const headers: any = {}
+    if (patientId) {
+      headers['x-patient-id'] = patientId
+    }
+    
+    const response = await api.delete(`/medical-records/vital-signs/${vitalSignsId}`, { headers })
+    return {
+      success: true,
+      data: response.data.vitalSigns,
+      message: response.data.message || 'Vital signs deleted successfully'
+    }
+  }
 }
+  

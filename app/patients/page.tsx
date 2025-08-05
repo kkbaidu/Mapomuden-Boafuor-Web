@@ -16,70 +16,117 @@ import {
   Calendar,
   User,
   Activity,
-  ChevronRight
+  ChevronRight,
+  AlertCircle,
+  Loader2
 } from 'lucide-react'
 import { formatRelativeTime, getInitials } from '@/lib/utils'
 import { Patient } from '@/types'
 import Link from 'next/link'
+import { patientAPI } from '@/services/patientAPI'
+
+interface PatientStats {
+  totalPatients: number
+  activeThisMonth: number
+  totalAppointments: number
+}
 
 export default function PatientsPage() {
-  const [patients] = useState<Patient[]>([
-    {
-      _id: '1',
-      firstName: 'John',
-      lastName: 'Doe',
-      email: 'john.doe@email.com',
-      phone: '+1 (555) 123-4567',
-      gender: 'male',
-      bloodGroup: 'O+',
-      location: 'New York, NY',
-      appointmentCount: 12,
-      lastVisit: '2024-01-20T10:00:00Z',
-      createdAt: '2023-06-15T10:00:00Z',
-      updatedAt: '2024-01-20T10:00:00Z'
-    },
-    {
-      _id: '2',
-      firstName: 'Sarah',
-      lastName: 'Johnson',
-      email: 'sarah.johnson@email.com',
-      phone: '+1 (555) 234-5678',
-      gender: 'female',
-      bloodGroup: 'A+',
-      location: 'Los Angeles, CA',
-      appointmentCount: 8,
-      lastVisit: '2024-01-18T14:30:00Z',
-      createdAt: '2023-08-20T10:00:00Z',
-      updatedAt: '2024-01-18T14:30:00Z'
-    },
-    {
-      _id: '3',
-      firstName: 'Michael',
-      lastName: 'Smith',
-      email: 'michael.smith@email.com',
-      phone: '+1 (555) 345-6789',
-      gender: 'male',
-      bloodGroup: 'B+',
-      location: 'Chicago, IL',
-      appointmentCount: 15,
-      lastVisit: '2024-01-22T09:15:00Z',
-      createdAt: '2023-04-10T10:00:00Z',
-      updatedAt: '2024-01-22T09:15:00Z'
-    }
-  ])
+  const [patients, setPatients] = useState<Patient[]>([])
+  const [filteredPatients, setFilteredPatients] = useState<Patient[]>([])
+  const [stats, setStats] = useState<PatientStats>({
+    totalPatients: 0,
+    activeThisMonth: 0,
+    totalAppointments: 0
+  })
   const [searchQuery, setSearchQuery] = useState('')
-  const [filteredPatients, setFilteredPatients] = useState<Patient[]>(patients)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [searchLoading, setSearchLoading] = useState(false)
+
+  // Fetch patients data
+  const fetchPatients = async (pageNum = 1, query = '') => {
+    try {
+      setLoading(pageNum === 1)
+      setSearchLoading(!!query)
+      
+      let response
+      if (query.trim()) {
+        response = await patientAPI.searchPatients(query, pageNum, 10)
+      } else {
+        response = await patientAPI.getPatients(pageNum, 10)
+      }
+      
+      if (response.success) {
+        const newPatients = response.data || []
+        setPatients(pageNum === 1 ? newPatients : [...patients, ...newPatients])
+        setFilteredPatients(pageNum === 1 ? newPatients : [...patients, ...newPatients])
+        setTotalPages(response.pages || 1)
+      } else {
+        setError(response.message || 'Failed to fetch patients')
+      }
+    } catch (err: any) {
+      console.error('Error fetching patients:', err)
+      setError(err.message || 'Failed to fetch patients')
+    } finally {
+      setLoading(false)
+      setSearchLoading(false)
+    }
+  }
+
+  // Fetch patient statistics from actual data
+  const fetchStats = async () => {
+    try {
+      // Get all patients to calculate stats
+      const response = await patientAPI.getPatients(1, 1000) // Get up to 1000 patients
+      if (response.success) {
+        const patients = response.data || []
+        const currentMonth = new Date().getMonth()
+        const currentYear = new Date().getFullYear()
+        
+        const activeThisMonth = patients.filter(patient => {
+          const createdDate = new Date(patient.createdAt)
+          return createdDate.getMonth() === currentMonth && createdDate.getFullYear() === currentYear
+        }).length
+
+        setStats({
+          totalPatients: patients.length,
+          activeThisMonth,
+          totalAppointments: patients.reduce((sum, patient) => sum + (patient.appointmentCount || 0), 0)
+        })
+      }
+    } catch (err) {
+      console.error('Error fetching patient stats:', err)
+      // Set default stats if fetching fails
+      setStats({
+        totalPatients: 0,
+        activeThisMonth: 0,
+        totalAppointments: 0
+      })
+    }
+  }
 
   useEffect(() => {
-    // Filter patients based on search query
-    const filtered = patients.filter(patient => 
-      patient.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      patient.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      patient.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      patient.phone.includes(searchQuery)
-    )
-    setFilteredPatients(filtered)
-  }, [searchQuery, patients])
+    fetchPatients()
+    fetchStats()
+  }, [])
+
+  // Handle search with debouncing
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchQuery !== '') {
+        setPage(1)
+        fetchPatients(1, searchQuery)
+      } else if (searchQuery === '') {
+        setPage(1)
+        fetchPatients(1)
+      }
+    }, 300)
+
+    return () => clearTimeout(timeoutId)
+  }, [searchQuery])
 
   const PatientCard = ({ patient }: { patient: Patient }) => (
     <Card className="hover:shadow-medium transition-shadow">
@@ -115,14 +162,18 @@ export default function PatientsPage() {
                   <Mail className="w-4 h-4 mr-2" />
                   {patient.email}
                 </div>
-                <div className="flex items-center">
-                  <MapPin className="w-4 h-4 mr-2" />
-                  {patient.location}
-                </div>
-                <div className="flex items-center">
-                  <User className="w-4 h-4 mr-2" />
-                  Blood Group: {patient.bloodGroup || 'Unknown'}
-                </div>
+                {patient.location && (
+                  <div className="flex items-center">
+                    <MapPin className="w-4 h-4 mr-2" />
+                    {patient.location}
+                  </div>
+                )}
+                {patient.bloodGroup && (
+                  <div className="flex items-center">
+                    <User className="w-4 h-4 mr-2" />
+                    Blood Group: {patient.bloodGroup}
+                  </div>
+                )}
               </div>
               
               <div className="flex items-center justify-between pt-3 border-t border-gray-100">
@@ -157,6 +208,48 @@ export default function PatientsPage() {
     </Card>
   )
 
+  const loadMorePatients = () => {
+    if (page < totalPages && !loading) {
+      const nextPage = page + 1
+      setPage(nextPage)
+      fetchPatients(nextPage, searchQuery)
+    }
+  }
+
+  if (loading && patients.length === 0) {
+    return (
+      <AuthGuard>
+        <DashboardLayout>
+          <div className="p-6 flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <Loader2 className="w-8 h-8 animate-spin text-primary-600 mx-auto mb-4" />
+              <p className="text-gray-600">Loading patients...</p>
+            </div>
+          </div>
+        </DashboardLayout>
+      </AuthGuard>
+    )
+  }
+
+  if (error && patients.length === 0) {
+    return (
+      <AuthGuard>
+        <DashboardLayout>
+          <div className="p-6 flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to load patients</h3>
+              <p className="text-gray-600 mb-4">{error}</p>
+              <Button onClick={() => fetchPatients()}>
+                Try Again
+              </Button>
+            </div>
+          </div>
+        </DashboardLayout>
+      </AuthGuard>
+    )
+  }
+
   return (
     <AuthGuard>
       <DashboardLayout>
@@ -184,7 +277,7 @@ export default function PatientsPage() {
                     <User className="h-6 w-6 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gray-900">{patients.length}</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.totalPatients}</p>
                     <p className="text-sm text-gray-600">Total Patients</p>
                   </div>
                 </div>
@@ -198,14 +291,7 @@ export default function PatientsPage() {
                     <Calendar className="h-6 w-6 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {patients.filter(p => {
-                        const lastVisit = new Date(p.lastVisit || p.updatedAt)
-                        const thirtyDaysAgo = new Date()
-                        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-                        return lastVisit >= thirtyDaysAgo
-                      }).length}
-                    </p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.activeThisMonth}</p>
                     <p className="text-sm text-gray-600">Active This Month</p>
                   </div>
                 </div>
@@ -219,9 +305,7 @@ export default function PatientsPage() {
                     <Activity className="h-6 w-6 text-purple-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {patients.reduce((total, p) => total + (p.appointmentCount || 0), 0)}
-                    </p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.totalAppointments}</p>
                     <p className="text-sm text-gray-600">Total Appointments</p>
                   </div>
                 </div>
@@ -242,6 +326,9 @@ export default function PatientsPage() {
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-10"
                     />
+                    {searchLoading && (
+                      <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -260,9 +347,31 @@ export default function PatientsPage() {
           {/* Patients List */}
           <div className="space-y-4">
             {filteredPatients.length > 0 ? (
-              filteredPatients.map((patient) => (
-                <PatientCard key={patient._id} patient={patient} />
-              ))
+              <>
+                {filteredPatients.map((patient) => (
+                  <PatientCard key={patient._id} patient={patient} />
+                ))}
+                
+                {/* Load More Button */}
+                {page < totalPages && (
+                  <div className="flex justify-center pt-4">
+                    <Button 
+                      variant="outline" 
+                      onClick={loadMorePatients}
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        'Load More Patients'
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </>
             ) : (
               <Card>
                 <CardContent className="p-12 text-center">
@@ -282,22 +391,20 @@ export default function PatientsPage() {
             )}
           </div>
 
-          {/* Pagination */}
+          {/* Pagination Info */}
           {filteredPatients.length > 0 && (
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-gray-600">
-                    Showing {filteredPatients.length} of {patients.length} patients
+                    Showing {filteredPatients.length} patients {totalPages > 1 && `(Page ${page} of ${totalPages})`}
                   </p>
-                  <div className="flex items-center space-x-2">
-                    <Button variant="outline" size="sm" disabled>
-                      Previous
-                    </Button>
-                    <Button variant="outline" size="sm" disabled>
-                      Next
-                    </Button>
-                  </div>
+                  {error && (
+                    <div className="flex items-center text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {error}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

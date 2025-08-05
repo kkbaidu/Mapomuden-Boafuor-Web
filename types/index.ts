@@ -84,7 +84,12 @@ export interface Prescription {
   medications: Medication[]
   diagnosis?: string
   notes?: string
-  status: 'active' | 'completed' | 'cancelled'
+  status: 'active' | 'completed' | 'cancelled' | 'expired'
+  prescriptionDate?: string
+  expiryDate?: string
+  pharmacy?: string
+  filled: boolean
+  filledDate?: string
   createdAt: string
   updatedAt: string
 }
@@ -105,15 +110,36 @@ export interface VitalSigns {
 export interface MedicalRecord {
   _id: string
   patient: Patient | string
-  doctor: User | string
-  visitDate: string
-  chiefComplaint: string
-  diagnosis: string
-  treatment: string
-  prescription?: Prescription | string
-  followUpDate?: string
-  vitalSigns?: VitalSigns[]
-  notes?: string
+  bloodGroup?: string
+  allergies: Array<{
+    allergen: string
+    reaction: string
+    severity: string
+  }>
+  medicalConditions: Array<{
+    condition: string
+    diagnosedDate: string
+    status: 'active' | 'resolved' | 'chronic'
+    notes?: string
+  }>
+  currentMedications: string[]
+  pastSurgeries: Array<{
+    surgery: string
+    date: string
+    hospital?: string
+    notes?: string
+  }>
+  vitalSigns: VitalSigns[]
+  immunizations: Array<{
+    vaccine: string
+    date: string
+    nextDue?: string
+  }>
+  familyHistory: Array<{
+    relation: string
+    condition: string
+    notes?: string
+  }>
   createdAt: string
   updatedAt: string
 }
