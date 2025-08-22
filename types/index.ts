@@ -20,7 +20,11 @@ export interface User {
   gender?: string
   bloodGroup?: string
   location?: string
-  emergencyContact?: string
+  emergencyContact?: string | {
+    name: string
+    phone: string
+    relationship: string
+  }
   allergies?: string[]
   medicalHistory?: string[]
 }
@@ -45,7 +49,11 @@ export interface Patient {
   gender?: string
   bloodGroup?: string
   location: string
-  emergencyContact?: string
+  emergencyContact?: string | {
+    name: string
+    phone: string
+    relationship: string
+  }
   allergies?: string[]
   medicalHistory?: string[]
   appointmentCount?: number
@@ -62,8 +70,11 @@ export interface Appointment {
   appointmentDate: string
   timeSlot: string
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
+  type?: 'in-person' | 'video-call'
   notes?: string
   reason?: string
+  videoCallLink?: string
+  videoCallPlatform?: string
   createdAt: string
   updatedAt: string
 }

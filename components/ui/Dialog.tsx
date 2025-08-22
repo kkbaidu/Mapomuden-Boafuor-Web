@@ -41,6 +41,7 @@ const DialogContext = React.createContext<{
 const Dialog = ({ children, open: controlledOpen, onOpenChange }: DialogProps) => {
   const [internalOpen, setInternalOpen] = React.useState(false)
   
+  // Ensure we default to false if no controlled value is provided
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen
   const setOpen = (newOpen: boolean) => {
     if (controlledOpen === undefined) {
@@ -51,10 +52,24 @@ const Dialog = ({ children, open: controlledOpen, onOpenChange }: DialogProps) =
 
   return (
     <DialogContext.Provider value={{ open, setOpen }}>
-      {children}
+      {/* Render non-content children (like DialogTrigger) */}
+      {React.Children.map(children, child => {
+        if (React.isValidElement(child) && child.type !== DialogContent) {
+          return child
+        }
+        return null
+      })}
+      
+      {/* Only render the modal overlay and content when open */}
       {open && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
-          <div className="fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%]">
+        <div 
+          className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm"
+          onClick={() => setOpen(false)}
+        >
+          <div 
+            className="fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%]"
+            onClick={(e) => e.stopPropagation()}
+          >
             {React.Children.map(children, child => {
               if (React.isValidElement(child) && child.type === DialogContent) {
                 return child
@@ -89,7 +104,7 @@ const DialogContent = ({ children, className }: DialogContentProps) => {
   
   return (
     <div className={cn(
-      "w-full max-w-lg rounded-lg border bg-background p-6 shadow-lg",
+      "relative w-full max-w-lg rounded-lg border bg-background p-6 shadow-lg",
       className
     )}>
       <button

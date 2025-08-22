@@ -273,7 +273,12 @@ export default function PatientDetailPage() {
                         <p className="font-medium text-gray-500">Emergency Contact</p>
                         <div className="flex items-center mt-1">
                           <Phone className="w-4 h-4 mr-2 text-gray-400" />
-                          <span>{patient.emergencyContact}</span>
+                          <span>
+                            {typeof patient.emergencyContact === 'object' 
+                              ? `${patient.emergencyContact.name} (${patient.emergencyContact.relationship}) - ${patient.emergencyContact.phone}`
+                              : patient.emergencyContact
+                            }
+                          </span>
                         </div>
                       </div>
                     )}
