@@ -1,23 +1,23 @@
-'use client'
+"use client";
 
-import { useAuth } from '@/contexts/AuthContext'
-import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
-import { Loader2 } from 'lucide-react'
+import { useAuth } from "@/contexts/AuthContext";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
 
 export default function Home() {
-  const { isAuthenticated, isLoading } = useAuth()
-  const router = useRouter()
+  const { isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
     if (!isLoading) {
       if (isAuthenticated) {
-        router.push('/dashboard')
+        router.push("/doctor");
       } else {
-        router.push('/auth/login')
+        router.push("/auth/login");
       }
     }
-  }, [isAuthenticated, isLoading, router])
+  }, [isAuthenticated, isLoading, router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center">
@@ -26,5 +26,5 @@ export default function Home() {
         <p className="mt-2 text-gray-600">Loading...</p>
       </div>
     </div>
-  )
+  );
 }
