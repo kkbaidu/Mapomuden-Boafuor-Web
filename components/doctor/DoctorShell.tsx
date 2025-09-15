@@ -12,10 +12,14 @@ import {
   UserCog,
   LogOut,
   Stethoscope,
+  Sun,
+  Moon,
+  Laptop,
 } from "lucide-react";
 import Link from "next/link";
 import clsx from "clsx";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/components/theme/ThemeProvider";
 import { usePathname } from "next/navigation";
 
 interface NavItem {
@@ -97,6 +101,7 @@ export default function DoctorShell({
 }) {
   const [open, setOpen] = useState(false);
   const { logout, user } = useAuth();
+  const { theme, effectiveTheme, toggleTheme } = useTheme();
   const pathname = usePathname();
   return (
     <div className="min-h-screen flex bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100">
@@ -169,6 +174,38 @@ export default function DoctorShell({
             </h1>
           </div>
           <div className="flex items-center gap-4">
+            <button
+              onClick={toggleTheme}
+              title={`Theme: ${theme} (click to cycle)`}
+              className="p-2 rounded-md border border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            >
+              {effectiveTheme === "dark" ? (
+                <Moon className="w-4 h-4" />
+              ) : effectiveTheme === "light" ? (
+                <Sun className="w-4 h-4" />
+              ) : (
+                <Laptop className="w-4 h-4" />
+              )}
+            </button>
+            <div className="hidden sm:flex gap-1">
+              {(["light", "dark", "system"] as const).map((opt) => (
+                <button
+                  key={opt}
+                  onClick={
+                    () =>
+                      toggleTheme() /* cycle; simple explicit buttons not using setTheme to keep minimal */
+                  }
+                  title={opt}
+                  className={`p-1 rounded border text-[10px] uppercase tracking-wide ${
+                    theme === opt
+                      ? "bg-indigo-600 text-white border-indigo-600"
+                      : "border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  }`}
+                >
+                  {opt[0]}
+                </button>
+              ))}
+            </div>
             <div className="flex flex-col items-end">
               <span className="text-xs font-medium">
                 {user?.firstName} {user?.lastName}
