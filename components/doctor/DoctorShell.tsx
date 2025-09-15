@@ -74,14 +74,14 @@ function NavLinks({ pathname }: { pathname: string }) {
             className={clsx(
               "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors group",
               active
-                ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-300"
+                ? "bg-brand-soft text-brand dark:text-brand"
                 : "text-slate-600 dark:text-slate-300 hover:bg-slate-100/70 dark:hover:bg-slate-700/60"
             )}
           >
             <span
               className={clsx(
                 "text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200",
-                active && "text-indigo-600 dark:text-indigo-300"
+                active && "text-brand"
               )}
             >
               {item.icon}
@@ -101,7 +101,7 @@ export default function DoctorShell({
 }) {
   const [open, setOpen] = useState(false);
   const { logout, user } = useAuth();
-  const { theme, effectiveTheme, toggleTheme } = useTheme();
+  const { theme, effectiveTheme, toggleTheme, role, setRole } = useTheme();
   const pathname = usePathname();
   return (
     <div className="min-h-screen flex bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100">
@@ -214,10 +214,19 @@ export default function DoctorShell({
                 {user?.role === "doctor" ? "Doctor" : ""}
               </span>
             </div>
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-medium">
+            <div className="w-9 h-9 rounded-full bg-avatar-brand flex items-center justify-center text-white text-sm font-medium">
               {user?.firstName?.[0] || "D"}
               {user?.lastName?.[0] || ""}
             </div>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value as any)}
+              className="ml-2 hidden md:block text-xs border border-slate-300 dark:border-slate-600 bg-white/60 dark:bg-slate-700/60 rounded px-2 py-1"
+              title="Role (temporary switch)"
+            >
+              <option value="doctor">Doctor</option>
+              <option value="patient">Patient</option>
+            </select>
           </div>
         </header>
         <main className="flex-1 p-6 overflow-x-hidden">

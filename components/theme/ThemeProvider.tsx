@@ -12,11 +12,14 @@ interface ThemeContextValue {
   effectiveTheme: "light" | "dark";
   toggleTheme: () => void;
   setTheme: (t: "light" | "dark" | "system") => void;
+  role: "doctor" | "patient";
+  setRole: (r: "doctor" | "patient") => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 const STORAGE_KEY = "theme";
+const ROLE_KEY = "role";
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const getSystemPref = () =>
@@ -37,6 +40,17 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     } catch {}
     return "system";
   });
+  const [role, setRoleState] = useState<"doctor" | "patient">(() => {
+    if (typeof window === "undefined") return "doctor";
+    try {
+      const stored = localStorage.getItem(ROLE_KEY) as
+        | "doctor"
+        | "patient"
+        | null;
+      if (stored === "doctor" || stored === "patient") return stored;
+    } catch {}
+    return "doctor";
+  });
   const [effectiveTheme, setEffectiveTheme] = useState<"light" | "dark">(() =>
     theme === "system" ? getSystemPref() : theme
   );
@@ -48,6 +62,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     root.classList.add("theme-transition");
     if (t === "dark") root.classList.add("dark");
     else root.classList.remove("dark");
+    root.setAttribute("data-role", role);
     window.setTimeout(() => root.classList.remove("theme-transition"), 300);
   };
 
@@ -62,7 +77,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     mq.addEventListener("change", listener);
     return () => mq.removeEventListener("change", listener);
-  }, [theme]);
+  }, [theme, role]);
 
   useEffect(() => {
     const eff = theme === "system" ? getSystemPref() : theme;
@@ -71,17 +86,25 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     try {
       localStorage.setItem(STORAGE_KEY, theme);
     } catch {}
-  }, [theme]);
+  }, [theme, role]);
 
   const setTheme = (t: "light" | "dark" | "system") => setThemeState(t);
   const toggleTheme = () =>
     setThemeState((p) =>
       p === "light" ? "dark" : p === "dark" ? "system" : "light"
     );
+  const setRole = (r: "doctor" | "patient") => {
+    setRoleState(r);
+    try {
+      localStorage.setItem(ROLE_KEY, r);
+    } catch {}
+    // re-apply to update data-role
+    apply(effectiveTheme);
+  };
 
   return (
     <ThemeContext.Provider
-      value={{ theme, effectiveTheme, toggleTheme, setTheme }}
+      value={{ theme, effectiveTheme, toggleTheme, setTheme, role, setRole }}
     >
       {children}
     </ThemeContext.Provider>
