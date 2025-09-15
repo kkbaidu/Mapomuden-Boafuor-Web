@@ -449,6 +449,80 @@ export default function PatientDetailPage() {
     }
   };
 
+  const renderFormattedSummary = (text: string) => {
+    const boldItalic = (segment: string): React.ReactNode[] => {
+      const nodes: React.ReactNode[] = [];
+      let remaining = segment;
+      const pattern = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g;
+      let match: RegExpExecArray | null;
+      let lastIndex = 0;
+      while ((match = pattern.exec(segment)) !== null) {
+        if (match.index > lastIndex) {
+          nodes.push(segment.slice(lastIndex, match.index));
+        }
+        const token = match[0];
+        if (token.startsWith("**")) {
+          nodes.push(<strong key={nodes.length}>{token.slice(2, -2)}</strong>);
+        } else if (token.startsWith("*")) {
+          nodes.push(<em key={nodes.length}>{token.slice(1, -1)}</em>);
+        } else if (token.startsWith("`")) {
+          nodes.push(
+            <code
+              key={nodes.length}
+              className="px-1 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-[11px]"
+            >
+              {token.slice(1, -1)}
+            </code>
+          );
+        } else {
+          nodes.push(token);
+        }
+        lastIndex = match.index + token.length;
+      }
+      if (lastIndex < segment.length) nodes.push(segment.slice(lastIndex));
+      return nodes;
+    };
+    const blocks = text
+      .trim()
+      .split(/\n{2,}/)
+      .filter((b) => b.trim().length);
+    return blocks.map((block, i) => {
+      const lines = block.split(/\n/).filter((l) => l.trim().length);
+      const allBullets = lines.every((l) => l.trim().startsWith("- "));
+      if (allBullets) {
+        return (
+          <ul key={i} className="list-disc pl-5 space-y-1 text-sm">
+            {lines.map((l, j) => (
+              <li key={j}>{boldItalic(l.trim().slice(2))}</li>
+            ))}
+          </ul>
+        );
+      }
+      return (
+        <div key={i} className="space-y-1">
+          {lines.map((l, j) => {
+            // Heading style if line ends with ':' and short
+            const trimmed = l.trim();
+            const isHeading = /[:：]$/.test(trimmed) && trimmed.length < 80;
+            const content = boldItalic(trimmed.replace(/[:：]$/, ""));
+            return isHeading ? (
+              <h4
+                key={j}
+                className="font-semibold text-indigo-600 dark:text-indigo-300 text-sm mt-2 first:mt-0"
+              >
+                {content}
+              </h4>
+            ) : (
+              <p key={j} className="text-sm leading-relaxed">
+                {boldItalic(trimmed)}
+              </p>
+            );
+          })}
+        </div>
+      );
+    });
+  };
+
   if (!patientId) return <div className="p-6">Invalid patient ID</div>;
 
   return (
@@ -771,7 +845,7 @@ export default function PatientDetailPage() {
               <div className="p-6 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-indigo-50/70 dark:bg-indigo-900/30 backdrop-blur-xl shadow-sm relative">
                 <div className="flex items-start gap-3">
                   <Brain className="w-5 h-5 text-indigo-600 dark:text-indigo-300 mt-0.5" />
-                  <div className="space-y-2">
+                  <div className="space-y-2 w-full">
                     <div className="flex items-center justify-between">
                       <h3 className="font-semibold tracking-tight">
                         AI Clinical Summary
@@ -783,8 +857,8 @@ export default function PatientDetailPage() {
                         Clear
                       </button>
                     </div>
-                    <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap text-sm leading-relaxed">
-                      {aiSummary}
+                    <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed">
+                      {renderFormattedSummary(aiSummary)}
                     </div>
                   </div>
                 </div>

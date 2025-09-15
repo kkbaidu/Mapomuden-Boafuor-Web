@@ -155,6 +155,7 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="doctor@hospital.com"
                   required
+                  className="text-gray-700"
                 />
               </div>
               <div className="space-y-1.5">
@@ -168,7 +169,7 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     required
-                    className="pr-10"
+                    className="pr-10 text-gray-700"
                   />
                   <button
                     type="button"
