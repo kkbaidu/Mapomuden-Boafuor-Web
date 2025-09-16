@@ -17,6 +17,175 @@ interface ChatMessage {
   ts: string;
 }
 
+// Basic safe formatter (bold, italic, code, headings, lists, blockquotes)
+function renderMessageContent(raw: string) {
+  const elements: React.ReactNode[] = [];
+  const lines = raw.replace(/\r/g, "").split("\n");
+  let i = 0;
+  const listBuffer: string[] = [];
+  const flushList = () => {
+    if (listBuffer.length) {
+      elements.push(
+        <ul
+          key={elements.length}
+          className="list-disc ml-5 space-y-1 text-[13px]"
+        >
+          {listBuffer.map((li, idx) => (
+            <li key={idx}>{parseInline(li)}</li>
+          ))}
+        </ul>
+      );
+      listBuffer.length = 0;
+    }
+  };
+  const parseInline = (text: string): React.ReactNode => {
+    // escape < >
+    let parts: (string | React.ReactNode)[] = [
+      text.replace(/</g, "&lt;").replace(/>/g, "&gt;"),
+    ];
+    const apply = (
+      regex: RegExp,
+      wrap: (s: string, k: number) => React.ReactNode
+    ) => {
+      const newParts: (string | React.ReactNode)[] = [];
+      parts.forEach((p) => {
+        if (typeof p !== "string") {
+          newParts.push(p);
+          return;
+        }
+        let last = 0;
+        let m;
+        let key = 0;
+        while ((m = regex.exec(p))) {
+          if (m.index > last) newParts.push(p.slice(last, m.index));
+          newParts.push(wrap(m[1], key++));
+          last = m.index + m[0].length;
+        }
+        if (last < p.length) newParts.push(p.slice(last));
+      });
+      parts = newParts;
+    };
+    // inline code
+    apply(/`([^`]+)`/g, (s, k) => (
+      <code
+        key={k}
+        className="px-1 py-0.5 rounded bg-slate-900/10 dark:bg-slate-700/50 text-indigo-600 dark:text-indigo-300 text-[12px] font-mono"
+      >
+        {s}
+      </code>
+    ));
+    // bold ** **
+    apply(/\*\*([^*]+)\*\*/g, (s, k) => (
+      <strong
+        key={k}
+        className="font-semibold text-slate-900 dark:text-slate-100"
+      >
+        {s}
+      </strong>
+    ));
+    // italic * * (avoid already bold)
+    apply(/(?<!\*)\*([^*]+)\*(?!\*)/g, (s, k) => (
+      <em key={k} className="italic">
+        {s}
+      </em>
+    ));
+    return parts.map((p, idx) => (
+      <React.Fragment key={idx}>{p}</React.Fragment>
+    ));
+  };
+  while (i < lines.length) {
+    // Code block
+    if (/^```/.test(lines[i])) {
+      flushList();
+      const lang = lines[i].replace(/^```+/, "").trim();
+      i++;
+      const codeLines: string[] = [];
+      while (i < lines.length && !/^```/.test(lines[i])) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      if (i < lines.length && /^```/.test(lines[i])) i++; // consume closing
+      elements.push(
+        <pre
+          key={elements.length}
+          className="text-[12px] leading-relaxed font-mono bg-slate-900/90 text-slate-100 p-3 rounded-lg overflow-x-auto border border-slate-700 shadow-inner"
+        >
+          {lang && (
+            <div className="text-[10px] uppercase tracking-wider text-indigo-300 mb-1 opacity-70">
+              {lang}
+            </div>
+          )}
+          <code>{codeLines.join("\n")}</code>
+        </pre>
+      );
+      continue;
+    }
+    // List item
+    if (/^[-*+]\s+/.test(lines[i])) {
+      listBuffer.push(lines[i].replace(/^[-*+]\s+/, ""));
+      i++;
+      continue;
+    } else {
+      flushList();
+    }
+    const line = lines[i].trimEnd();
+    // Headings
+    const headingMatch = /^(#{1,6})\s+(.*)$/.exec(line);
+    if (headingMatch) {
+      const level = headingMatch[1].length;
+      const sizeClass = {
+        1: "text-lg",
+        2: "text-base",
+        3: "text-sm",
+        4: "text-sm",
+        5: "text-[13px]",
+        6: "text-[12px]",
+      }[level as 1 | 2 | 3 | 4 | 5 | 6];
+      elements.push(
+        <div
+          key={elements.length}
+          className={`${sizeClass} font-semibold mt-2 first:mt-0 text-indigo-600 dark:text-indigo-300`}
+        >
+          {parseInline(headingMatch[2])}
+        </div>
+      );
+      i++;
+      continue;
+    }
+    // Blockquote
+    if (/^>\s?/.test(line)) {
+      elements.push(
+        <blockquote
+          key={elements.length}
+          className="border-l-2 pl-3 border-indigo-400/60 dark:border-indigo-300/40 italic text-[13px] text-slate-600 dark:text-slate-300"
+        >
+          {parseInline(line.replace(/^>\s?/, ""))}
+        </blockquote>
+      );
+      i++;
+      continue;
+    }
+    // Empty line -> spacer
+    if (line.trim() === "") {
+      elements.push(<div key={elements.length} className="h-2" />);
+      i++;
+      continue;
+    }
+    // Paragraph
+    elements.push(
+      <p
+        key={elements.length}
+        className="text-[13px] leading-relaxed text-slate-700 dark:text-slate-200"
+      >
+        {parseInline(line)}
+      </p>
+    );
+    i++;
+  }
+  flushList();
+  return <>{elements}</>;
+}
+
 export default function DoctorAIChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -173,7 +342,9 @@ export default function DoctorAIChatPage() {
                       : "bg-white/80 dark:bg-slate-900/60 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-bl-sm")
                   }
                 >
-                  {m.content}
+                  {m.role === "ai"
+                    ? renderMessageContent(m.content)
+                    : m.content}
                   <div className="mt-2 text-[10px] opacity-60">
                     {new Date(m.ts).toLocaleTimeString([], {
                       hour: "2-digit",
