@@ -452,7 +452,7 @@ export default function PatientDetailPage() {
   const renderFormattedSummary = (text: string) => {
     const boldItalic = (segment: string): React.ReactNode[] => {
       const nodes: React.ReactNode[] = [];
-      let remaining = segment;
+      const remaining = segment;
       const pattern = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g;
       let match: RegExpExecArray | null;
       let lastIndex = 0;
